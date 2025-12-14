@@ -1,0 +1,238 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap');
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* CyberCheck Design System - Secure University Attendance */
+
+@layer base {
+  :root {
+    /* Core Colors - Cyber Security Theme */
+    --background: 220 20% 97%;
+    --foreground: 220 25% 10%;
+
+    --card: 0 0% 100%;
+    --card-foreground: 220 25% 10%;
+
+    --popover: 0 0% 100%;
+    --popover-foreground: 220 25% 10%;
+
+    /* Primary - Secure Blue */
+    --primary: 217 91% 50%;
+    --primary-foreground: 0 0% 100%;
+
+    /* Secondary - Steel Gray */
+    --secondary: 220 14% 92%;
+    --secondary-foreground: 220 25% 20%;
+
+    --muted: 220 14% 95%;
+    --muted-foreground: 220 10% 46%;
+
+    /* Accent - Cyber Teal */
+    --accent: 173 80% 40%;
+    --accent-foreground: 0 0% 100%;
+
+    /* Status Colors */
+    --success: 142 71% 45%;
+    --success-foreground: 0 0% 100%;
+
+    --warning: 38 92% 50%;
+    --warning-foreground: 0 0% 100%;
+
+    --destructive: 0 84% 60%;
+    --destructive-foreground: 0 0% 100%;
+
+    --suspicious: 25 95% 53%;
+    --suspicious-foreground: 0 0% 100%;
+
+    --border: 220 13% 88%;
+    --input: 220 13% 88%;
+    --ring: 217 91% 50%;
+
+    --radius: 0.75rem;
+
+    /* Gradients */
+    --gradient-primary: linear-gradient(135deg, hsl(217 91% 50%), hsl(217 91% 40%));
+    --gradient-cyber: linear-gradient(135deg, hsl(217 91% 50%), hsl(173 80% 40%));
+    --gradient-secure: linear-gradient(180deg, hsl(220 20% 97%), hsl(220 14% 92%));
+    --gradient-card: linear-gradient(145deg, hsl(0 0% 100%), hsl(220 14% 98%));
+
+    /* Shadows */
+    --shadow-sm: 0 2px 8px -2px hsl(220 25% 10% / 0.08);
+    --shadow-md: 0 8px 24px -8px hsl(220 25% 10% / 0.12);
+    --shadow-lg: 0 16px 48px -12px hsl(220 25% 10% / 0.16);
+    --shadow-glow: 0 0 20px hsl(217 91% 50% / 0.3);
+
+    /* Sidebar */
+    --sidebar-background: 220 25% 12%;
+    --sidebar-foreground: 220 10% 90%;
+    --sidebar-primary: 217 91% 50%;
+    --sidebar-primary-foreground: 0 0% 100%;
+    --sidebar-accent: 220 20% 18%;
+    --sidebar-accent-foreground: 220 10% 90%;
+    --sidebar-border: 220 20% 20%;
+    --sidebar-ring: 217 91% 50%;
+  }
+
+  .dark {
+    --background: 220 25% 8%;
+    --foreground: 220 10% 95%;
+
+    --card: 220 25% 12%;
+    --card-foreground: 220 10% 95%;
+
+    --popover: 220 25% 12%;
+    --popover-foreground: 220 10% 95%;
+
+    --primary: 217 91% 60%;
+    --primary-foreground: 220 25% 8%;
+
+    --secondary: 220 20% 18%;
+    --secondary-foreground: 220 10% 90%;
+
+    --muted: 220 20% 15%;
+    --muted-foreground: 220 10% 60%;
+
+    --accent: 173 80% 45%;
+    --accent-foreground: 0 0% 100%;
+
+    --success: 142 71% 50%;
+    --warning: 38 92% 55%;
+    --destructive: 0 75% 55%;
+    --suspicious: 25 95% 58%;
+
+    --border: 220 20% 20%;
+    --input: 220 20% 20%;
+    --ring: 217 91% 60%;
+
+    --shadow-sm: 0 2px 8px -2px hsl(0 0% 0% / 0.3);
+    --shadow-md: 0 8px 24px -8px hsl(0 0% 0% / 0.4);
+    --shadow-lg: 0 16px 48px -12px hsl(0 0% 0% / 0.5);
+
+    --sidebar-background: 220 25% 6%;
+    --sidebar-foreground: 220 10% 90%;
+    --sidebar-accent: 220 20% 12%;
+    --sidebar-border: 220 20% 15%;
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+
+  html {
+    font-family: 'Inter', system-ui, sans-serif;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+
+  body {
+    @apply bg-background text-foreground;
+    font-feature-settings: "cv02", "cv03", "cv04", "cv11";
+  }
+
+  .font-mono {
+    font-family: 'JetBrains Mono', monospace;
+  }
+}
+
+@layer components {
+  .cyber-card {
+    @apply bg-card rounded-xl border border-border;
+    box-shadow: var(--shadow-md);
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  }
+
+  .cyber-card:hover {
+    box-shadow: var(--shadow-lg);
+    transform: translateY(-2px);
+  }
+
+  .cyber-glow {
+    box-shadow: var(--shadow-glow);
+  }
+
+  .gradient-primary {
+    background: var(--gradient-primary);
+  }
+
+  .gradient-cyber {
+    background: var(--gradient-cyber);
+  }
+
+  .pin-input {
+    @apply font-mono text-4xl font-bold tracking-[0.5em] text-center;
+    letter-spacing: 0.75em;
+  }
+
+  .status-badge {
+    @apply inline-flex items-center px-3 py-1 rounded-full text-xs font-semibold;
+  }
+
+  .status-present {
+    @apply bg-success/15 text-success;
+  }
+
+  .status-absent {
+    @apply bg-destructive/15 text-destructive;
+  }
+
+  .status-excused {
+    @apply bg-warning/15 text-warning;
+  }
+
+  .status-suspicious {
+    @apply bg-suspicious/15 text-suspicious;
+  }
+
+  .mobile-only-message {
+    @apply hidden md:flex fixed inset-0 z-50 items-center justify-center bg-background;
+  }
+
+  .pulse-ring {
+    animation: pulse-ring 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+  }
+
+  @keyframes pulse-ring {
+    0%, 100% {
+      opacity: 1;
+      transform: scale(1);
+    }
+    50% {
+      opacity: 0.5;
+      transform: scale(1.05);
+    }
+  }
+
+  .fade-in {
+    animation: fadeIn 0.4s ease-out forwards;
+  }
+
+  @keyframes fadeIn {
+    from {
+      opacity: 0;
+      transform: translateY(10px);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+
+  .slide-up {
+    animation: slideUp 0.5s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+  }
+
+  @keyframes slideUp {
+    from {
+      opacity: 0;
+      transform: translateY(20px);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+}
