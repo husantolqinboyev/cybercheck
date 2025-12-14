@@ -197,7 +197,26 @@ const TeacherLessons = () => {
     setIsStarting(true);
 
     try {
-      const location = await getCurrentLocation();
+      let location;
+      try {
+        location = await getCurrentLocation();
+      } catch (locationError) {
+        console.error("Joylashuv aniqlanmadi:", locationError);
+        // GPS ishlamaganda, standart joylashuv ishlatish (masalan, Toshkent)
+        location = {
+          latitude: 41.3111,
+          longitude: 69.2797,
+          accuracy: 1000,
+          timestamp: Date.now()
+        };
+        
+        toast({
+          title: "GPS ishlamayapti",
+          description: "Standart joylashuv ishlatilmoqda. Dars davom etishi mumkin.",
+          variant: "default",
+        });
+      }
+      
       const pin = generatePIN();
       const expiresAt = new Date();
       expiresAt.setSeconds(expiresAt.getSeconds() + pinValiditySeconds);
@@ -269,11 +288,22 @@ const TeacherLessons = () => {
         description: `PIN kod: ${pin} (${pinValiditySeconds} soniya)`,
       });
     } catch (error) {
-      toast({
-        title: "Xatolik",
-        description: error instanceof Error ? error.message : "Darsni boshlashda xatolik",
-        variant: "destructive",
-      });
+      console.error("Darsni boshlash xatoligi:", error);
+      
+      // Agar joylashuv xatosi bo'lsa, lekin PIN olish muhim bo'lsa
+      if (error instanceof Error && error.message.includes("Joylashuvni aniqlash")) {
+        toast({
+          title: "GPS xatolik",
+          description: "GPS aniqlanmadi. Iltimos, qurilmaning GPS ni yoqing va qayta urinib ko'ring.",
+          variant: "destructive",
+        });
+      } else {
+        toast({
+          title: "Xatolik",
+          description: error instanceof Error ? error.message : "Darsni boshlashda xatolik",
+          variant: "destructive",
+        });
+      }
     } finally {
       setIsStarting(false);
     }

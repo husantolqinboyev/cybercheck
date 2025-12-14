@@ -29,7 +29,7 @@ function corsHeaders(origin: string | null = null) {
   const allowedOrigin = allowedOrigins.includes(origin || "") ? origin : allowedOrigins[0];
   
   return {
-    "Access-Control-Allow-Origin": allowedOrigin || "*",
+    "Access-Control-Allow-Origin": allowedOrigin,
     "Access-Control-Allow-Headers": "content-type, authorization",
     "Access-Control-Allow-Methods": "POST, OPTIONS",
     "Vary": "Origin",
@@ -75,9 +75,16 @@ Deno.serve(async (req) => {
   const url = new URL(req.url);
   const action = url.pathname.split("/").pop();
 
+  const supabaseUrl = Deno.env.get("SUPABASE_URL");
+  const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
+  
+  if (!supabaseUrl || !supabaseServiceKey) {
+    return json({ error: "Server configuration error" }, 500, {}, origin);
+  }
+
   const supabase = createClient(
-    Deno.env.get("SUPABASE_URL")!,
-    Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!,
+    supabaseUrl,
+    supabaseServiceKey,
   );
 
   /* ---------- LOGIN ---------- */

@@ -64,7 +64,7 @@ export function getCurrentLocation(): Promise<LocationData> {
         },
         {
           enableHighAccuracy: true,
-          timeout: 10000, // Reduced from 15000
+          timeout: 20000, // Increased from 10000
           maximumAge: 0,
         }
       );
@@ -85,7 +85,7 @@ export function getCurrentLocation(): Promise<LocationData> {
         },
         {
           enableHighAccuracy: false,
-          timeout: 8000, // Further reduced
+          timeout: 15000, // Increased from 8000
           maximumAge: 30000, // Allow cached location
         }
       );
