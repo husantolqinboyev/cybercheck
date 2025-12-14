@@ -105,18 +105,52 @@ export async function detectFakeGPS(): Promise<{ isFake: boolean; reasons: strin
       }
     }
 
+    // Get multiple location readings for accuracy validation
+    const readings = await Promise.all([
+      getCurrentLocation(),
+      getCurrentLocation(),
+      getCurrentLocation()
+    ]);
+
     // Check for suspicious accuracy (too perfect = likely fake)
-    const location = await getCurrentLocation();
-    if (location.accuracy < 1) {
+    const avgAccuracy = readings.reduce((sum, r) => sum + r.accuracy, 0) / readings.length;
+    if (avgAccuracy < 1) {
       isFake = true;
       reasons.push("GPS aniqlik darajasi shubhali (juda aniq)");
     }
 
     // Check for location spoofing apps behavior
     // Mock locations often have exactly 0 accuracy or very high accuracy
-    if (location.accuracy === 0 || location.accuracy > 1000) {
+    if (avgAccuracy === 0 || avgAccuracy > 1000) {
       isFake = true;
       reasons.push("GPS aniqlik darajasi noto'g'ri");
+    }
+
+    // Check for location consistency
+    const latVariance = readings.reduce((sum, r) => {
+      const mean = readings.reduce((s, reading) => s + reading.latitude, 0) / readings.length;
+      return sum + Math.pow(r.latitude - mean, 2);
+    }, 0) / readings.length;
+    
+    const lonVariance = readings.reduce((sum, r) => {
+      const mean = readings.reduce((s, reading) => s + reading.longitude, 0) / readings.length;
+      return sum + Math.pow(r.longitude - mean, 2);
+    }, 0) / readings.length;
+
+    if (latVariance < 0.000001 && lonVariance < 0.000001) {
+      isFake = true;
+      reasons.push("GPS ko'rsatkichlari sun'iy ravishda barqaror");
+    }
+
+    // Check timestamp consistency
+    const timestampGaps = readings.slice(1).map((reading, i) => 
+      reading.timestamp - readings[i].timestamp
+    );
+    const avgGap = timestampGaps.reduce((sum, gap) => sum + gap, 0) / timestampGaps.length;
+    
+    if (avgGap < 100) {
+      isFake = true;
+      reasons.push("GPS o'lchovlari juda tez (mumkin emas)");
     }
 
   } catch (error) {
