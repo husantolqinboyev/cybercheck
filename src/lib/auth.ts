@@ -116,7 +116,7 @@ export async function login(
   // Check browser before making request
   // We'll get the role after login, so do a preliminary check
   try {
-    const response = await fetch(`${SUPABASE_URL}/functions/v1/auth/login`, {
+    const response = await makeRequestWithFallback('/functions/v1/auth/login', {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
@@ -138,8 +138,12 @@ export async function login(
     // Check browser compatibility after getting role
     if (!isAllowedBrowser(result.user.role)) {
       // Logout since we already logged in
-      await fetch(`${SUPABASE_URL}/functions/v1/auth/logout`, {
+      await makeRequestWithFallback('/functions/v1/auth/logout', {
         method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ token: result.token }),
       });
       return { 
         success: false, 
@@ -171,7 +175,7 @@ export async function logout(): Promise<void> {
     const localSession = getCurrentSession();
     const token = localSession?.token || "";
     
-    await fetch(`${SUPABASE_URL}/functions/v1/auth/logout`, {
+    await makeRequestWithFallback('/functions/v1/auth/logout', {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
@@ -184,6 +188,68 @@ export async function logout(): Promise<void> {
   clearSession();
 }
 
+// Network retry configuration
+const MAX_RETRIES = 3;
+const RETRY_DELAY = 1000; // 1 second
+const TIMEOUT = 10000; // 10 seconds
+
+// DNS fallback URLs (if main DNS fails)
+const FALLBACK_URLS = [
+  import.meta.env.VITE_SUPABASE_URL,
+  "https://wzbfxcqohosejmarcaxt.supabase.co"
+].filter(Boolean);
+
+// Make HTTP request with retry logic and timeout
+async function makeRequest(url: string, options: RequestInit, retries = MAX_RETRIES): Promise<Response> {
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), TIMEOUT);
+
+  try {
+    const response = await fetch(url, {
+      ...options,
+      signal: controller.signal,
+    });
+    clearTimeout(timeoutId);
+    
+    if (response.ok) {
+      return response;
+    }
+    
+    throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+  } catch (error) {
+    clearTimeout(timeoutId);
+    
+    if (retries > 0 && error instanceof Error) {
+      // Don't retry on abort or 4xx errors
+      if (error.name === 'AbortError' || (error.message.includes('HTTP 4'))) {
+        throw error;
+      }
+      
+      console.warn(`Request failed, retrying... (${retries} attempts left)`, error.message);
+      await new Promise(resolve => setTimeout(resolve, RETRY_DELAY));
+      return makeRequest(url, options, retries - 1);
+    }
+    
+    throw error;
+  }
+}
+
+// Try multiple URLs with fallback
+async function makeRequestWithFallback(path: string, options: RequestInit): Promise<Response> {
+  for (const baseUrl of FALLBACK_URLS) {
+    try {
+      const url = `${baseUrl}${path}`;
+      console.log(`Trying URL: ${baseUrl}`);
+      return await makeRequest(url, options);
+    } catch (error) {
+      console.warn(`Failed to connect to ${baseUrl}:`, error instanceof Error ? error.message : error);
+      // Continue to next URL
+    }
+  }
+  
+  throw new Error('All connection attempts failed. Please check your internet connection.');
+}
+
 // Validate current session via token
 export async function validateSession(): Promise<{ valid: boolean; user?: User; expires_at?: string }> {
   // First check memory for quick UI state
@@ -193,7 +259,7 @@ export async function validateSession(): Promise<{ valid: boolean; user?: User; 
     // Get token from memory session
     const token = localSession?.token || "";
     
-    const response = await fetch(`${SUPABASE_URL}/functions/v1/auth/validate`, {
+    const response = await makeRequestWithFallback('/functions/v1/auth/validate', {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
@@ -221,6 +287,7 @@ export async function validateSession(): Promise<{ valid: boolean; user?: User; 
     console.error("Session validation error:", error);
     // Fall back to memory if server is unreachable
     if (localSession) {
+      console.log("Using cached session due to network issues");
       return { valid: true, user: localSession.user, expires_at: localSession.expires_at };
     }
     return { valid: false };
