@@ -35,18 +35,77 @@ export function calculateDistance(
   return R * c; // Distance in meters
 }
 
+// GPS diagnostikasi - qanday muammo borligini aniqlash
+export async function diagnoseGPSSystem(): Promise<{
+  isSupported: boolean;
+  hasPermission: boolean;
+  isHTTPS: boolean;
+  browserInfo: string;
+  recommendations: string[];
+}> {
+  const recommendations: string[] = [];
+  
+  // Brauzer va HTTPS tekshiruvi
+  const isHTTPS = location.protocol === 'https:' || location.hostname === 'localhost';
+  const browserInfo = navigator.userAgent;
+  
+  if (!isHTTPS) {
+    recommendations.push("HTTPS protokol talab qilinadi. Localhost yoki HTTPS ishlatishingiz kerak.");
+  }
+  
+  // Geolocation qo'llab-quvvatlashi
+  const isSupported = 'geolocation' in navigator;
+  if (!isSupported) {
+    recommendations.push("Brauzeringiz Geolocation API qo'llab-quvvatlamaydi. Zamonaviy brauzer ishlating.");
+  }
+  
+  // Ruxsat holati
+  let hasPermission = false;
+  if ('permissions' in navigator) {
+    try {
+      const permission = await navigator.permissions.query({ name: 'geolocation' });
+      hasPermission = permission.state === 'granted';
+      
+      if (permission.state === 'denied') {
+        recommendations.push("GPS ruxsati rad etilgan. Brauzer sozlamalaridan ruxsat bering.");
+      } else if (permission.state === 'prompt') {
+        recommendations.push("GPS ruxsati so'ralmagan. Darsni boshlaganda ruxsat bering.");
+      }
+    } catch (e) {
+      recommendations.push("Ruxsat holatini tekshirib bo'lmadi. Brauzer sozlamalarini tekshiring.");
+    }
+  } else {
+    recommendations.push("Ruxsat API qo'llab-quvvatlanmaydi. Brauzer sozlamalaridan GPS ni yoqing.");
+  }
+  
+  return {
+    isSupported,
+    hasPermission,
+    isHTTPS,
+    browserInfo,
+    recommendations
+  };
+}
+
 // Get current location
 export function getCurrentLocation(): Promise<LocationData> {
   return new Promise((resolve, reject) => {
+    console.log("GPS tekshirilmoqda...");
+    
     if (!navigator.geolocation) {
+      console.error("Geolocation qo'llab-quvvatlanmaydi");
       reject(new Error("Geolocation qo'llab-quvvatlanmaydi"));
       return;
     }
 
+    console.log("Geolocation mavjud, ruxsatlar tekshirilmoqda...");
+
     // First try with high accuracy, if timeout then try with lower accuracy
     const tryHighAccuracy = () => {
+      console.log("Yuqori aniqlik bilan urinish...");
       navigator.geolocation.getCurrentPosition(
         (position) => {
+          console.log("GPS muvaffaqiyatli aniqlandi:", position.coords);
           resolve({
             latitude: position.coords.latitude,
             longitude: position.coords.longitude,
@@ -55,8 +114,10 @@ export function getCurrentLocation(): Promise<LocationData> {
           });
         },
         (error) => {
+          console.error("Yuqori aniqlik xatosi:", error);
           // If high accuracy fails, try with lower accuracy
           if (error.code === error.TIMEOUT) {
+            console.log("Timeout, past aniqlik bilan urinish...");
             tryLowAccuracy();
           } else {
             handleGeolocationError(error, reject);

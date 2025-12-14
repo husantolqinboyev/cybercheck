@@ -21,7 +21,7 @@ import { Slider } from "@/components/ui/slider";
 import { useToast } from "@/hooks/use-toast";
 import { TeacherLayout } from "@/components/layouts/TeacherLayout";
 import { generatePIN } from "@/lib/auth";
-import { getCurrentLocation } from "@/lib/geolocation";
+import { getCurrentLocation, diagnoseGPSSystem } from "@/lib/geolocation";
 import {
   Play,
   Square,
@@ -202,6 +202,20 @@ const TeacherLessons = () => {
         location = await getCurrentLocation();
       } catch (locationError) {
         console.error("Joylashuv aniqlanmadi:", locationError);
+        
+        // GPS diagnostikasini ishga tushirish
+        const diagnosis = await diagnoseGPSSystem();
+        console.log("GPS diagnostikasi:", diagnosis);
+        
+        // Foydalanuvchiga aniq xatolik haqida ma'lumot berish
+        const errorMessage = diagnosis.recommendations.join(" ");
+        
+        toast({
+          title: "GPS xatolik diagnostikasi",
+          description: errorMessage,
+          variant: "destructive",
+        });
+        
         // GPS ishlamaganda, standart joylashuv ishlatish (masalan, Toshkent)
         location = {
           latitude: 41.3111,
@@ -211,8 +225,8 @@ const TeacherLessons = () => {
         };
         
         toast({
-          title: "GPS ishlamayapti",
-          description: "Standart joylashuv ishlatilmoqda. Dars davom etishi mumkin.",
+          title: "Standart joylashuv ishlatilmoqda",
+          description: "GPS ishlamagani uchun Toshkent koordinatalari ishlatiladi. Dars davom etishi mumkin.",
           variant: "default",
         });
       }

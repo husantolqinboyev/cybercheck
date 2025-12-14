@@ -8,6 +8,7 @@ export default defineConfig({
   server: {
     host: '0.0.0.0', // Tashqi IP dan kirish uchun
     port: 8080,
+    https: true, // HTTPS ni yoqish - GPS uchun zarur
   },
   build: {
     outDir: 'dist',
