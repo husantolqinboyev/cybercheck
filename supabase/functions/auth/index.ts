@@ -1,7 +1,7 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
-const ALLOWED_ORIGIN = "http://localhost:8080";
-const IS_DEV = true; // prod'da false qilasan
+const ALLOWED_ORIGIN = "https://cybercheck-uni.vercel.app";
+const IS_DEV = false; // prod'da false qilasan
 
 /* ================== MEMORY STORAGE ================== */
 // Tokenlar faqat memory'da saqlanadi, refresh qilinsa o'chadi
@@ -18,10 +18,18 @@ const memoryTokens = new Map<string, {
 /* ================== HELPERS ================== */
 
 function corsHeaders(origin: string | null = null) {
-  // Dynamic CORS - barcha originlarga ruxsat berish (mobile uchun)
-  const allowedOrigin = origin || ALLOWED_ORIGIN;
+  // Allowed origins for production and development
+  const allowedOrigins = [
+    "https://cybercheck-uni.vercel.app",
+    "http://localhost:8080",
+    "http://localhost:5173"
+  ];
+  
+  // Dynamic CORS - ruxsat berilgan originlardan birini tanlash
+  const allowedOrigin = allowedOrigins.includes(origin || "") ? origin : allowedOrigins[0];
+  
   return {
-    "Access-Control-Allow-Origin": allowedOrigin,
+    "Access-Control-Allow-Origin": allowedOrigin || "*",
     "Access-Control-Allow-Headers": "content-type, authorization",
     "Access-Control-Allow-Methods": "POST, OPTIONS",
     "Vary": "Origin",
