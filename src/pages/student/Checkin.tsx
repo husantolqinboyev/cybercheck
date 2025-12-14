@@ -81,14 +81,24 @@ const StudentCheckin = () => {
       // Check for fake GPS
       const fakeCheck = await detectFakeGPS();
 
-      // Get current location
+      // Get current location with better error handling
       let location;
       try {
         location = await getCurrentLocation();
       } catch (error) {
+        let errorMessage = "GPS xatosi";
+        if (error instanceof Error) {
+          errorMessage = error.message;
+          // Provide specific guidance for common errors
+          if (error.message.includes("ruxsat")) {
+            errorMessage += "\n\nChrome/Safari sozlamalarida: \n1. Uch burchak menyuga bosing\n2. 'Joylashuv' ruxsatini 'Ruxsat berilgan' qiling\n3. Sahifani qayta yuklang";
+          } else if (error.message.includes("Internet")) {
+            errorMessage += "\n\nIltimos, Wi-Fi yoki mobil internet aloqasini tekshiring";
+          }
+        }
         setCheckResult({
           success: false,
-          message: error instanceof Error ? error.message : "GPS xatosi",
+          message: errorMessage,
         });
         return;
       }

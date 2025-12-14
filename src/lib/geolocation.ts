@@ -43,36 +43,72 @@ export function getCurrentLocation(): Promise<LocationData> {
       return;
     }
 
-    navigator.geolocation.getCurrentPosition(
-      (position) => {
-        resolve({
-          latitude: position.coords.latitude,
-          longitude: position.coords.longitude,
-          accuracy: position.coords.accuracy,
-          timestamp: position.timestamp,
-        });
-      },
-      (error) => {
-        switch (error.code) {
-          case error.PERMISSION_DENIED:
-            reject(new Error("Joylashuv ruxsati berilmadi"));
-            break;
-          case error.POSITION_UNAVAILABLE:
-            reject(new Error("Joylashuvni aniqlab bo'lmadi"));
-            break;
-          case error.TIMEOUT:
-            reject(new Error("Joylashuvni aniqlash vaqti tugadi"));
-            break;
-          default:
-            reject(new Error("Noma'lum xatolik"));
+    // First try with high accuracy, if timeout then try with lower accuracy
+    const tryHighAccuracy = () => {
+      navigator.geolocation.getCurrentPosition(
+        (position) => {
+          resolve({
+            latitude: position.coords.latitude,
+            longitude: position.coords.longitude,
+            accuracy: position.coords.accuracy,
+            timestamp: position.timestamp,
+          });
+        },
+        (error) => {
+          // If high accuracy fails, try with lower accuracy
+          if (error.code === error.TIMEOUT) {
+            tryLowAccuracy();
+          } else {
+            handleGeolocationError(error, reject);
+          }
+        },
+        {
+          enableHighAccuracy: true,
+          timeout: 10000, // Reduced from 15000
+          maximumAge: 0,
         }
-      },
-      {
-        enableHighAccuracy: true,
-        timeout: 15000,
-        maximumAge: 0,
+      );
+    };
+
+    const tryLowAccuracy = () => {
+      navigator.geolocation.getCurrentPosition(
+        (position) => {
+          resolve({
+            latitude: position.coords.latitude,
+            longitude: position.coords.longitude,
+            accuracy: position.coords.accuracy,
+            timestamp: position.timestamp,
+          });
+        },
+        (error) => {
+          handleGeolocationError(error, reject);
+        },
+        {
+          enableHighAccuracy: false,
+          timeout: 8000, // Further reduced
+          maximumAge: 30000, // Allow cached location
+        }
+      );
+    };
+
+    const handleGeolocationError = (error: GeolocationPositionError, rejectFn: (reason: Error) => void) => {
+      switch (error.code) {
+        case error.PERMISSION_DENIED:
+          rejectFn(new Error("Joylashuv ruxsati berilmadi. Iltimos, brauzer sozlamalaridan GPS ruxsatini bering."));
+          break;
+        case error.POSITION_UNAVAILABLE:
+          rejectFn(new Error("Joylashuvni aniqlab bo'lmadi. Internet aloqasini tekshiring."));
+          break;
+        case error.TIMEOUT:
+          rejectFn(new Error("Joylashuvni aniqlash vaqti tugadi. Qayta urinib ko'ring."));
+          break;
+        default:
+          rejectFn(new Error("Noma'lum xatolik: " + error.message));
       }
-    );
+    };
+
+    // Start with high accuracy attempt
+    tryHighAccuracy();
   });
 }
 
