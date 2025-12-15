@@ -28,24 +28,24 @@ export function getDetectionThresholds(level: FakeDetectionLevel): DetectionThre
   switch (level) {
     case 'minimal':
       return {
-        accuracyThreshold: 0.05,     // Very precise detection
-        maxAccuracy: 10000,          // Allow higher accuracy
-        varianceThreshold: 0.000000001, // Very stable detection
-        timestampThreshold: 10       // Very fast detection
+        accuracyThreshold: 0.01,     // Very precise detection
+        maxAccuracy: 15000,          // Allow much higher accuracy
+        varianceThreshold: 0.0000000001, // Extremely stable detection
+        timestampThreshold: 5        // Very fast detection
       };
     case 'medium':
       return {
-        accuracyThreshold: 0.1,      // More relaxed
-        maxAccuracy: 5000,           // Allow higher accuracy
-        varianceThreshold: 0.00000001, // More relaxed
-        timestampThreshold: 25       // More relaxed
+        accuracyThreshold: 0.05,      // Much more relaxed
+        maxAccuracy: 10000,           // Allow much higher accuracy
+        varianceThreshold: 0.000000001, // Much more relaxed
+        timestampThreshold: 15       // Much more relaxed
       };
     case 'maximal':
       return {
-        accuracyThreshold: 1.0,      // Much less strict
-        maxAccuracy: 3000,           // Moderate max accuracy
-        varianceThreshold: 0.000001,  // Much less strict
-        timestampThreshold: 50       // Much more relaxed
+        accuracyThreshold: 0.5,      // Very relaxed
+        maxAccuracy: 5000,            // High max accuracy
+        varianceThreshold: 0.0000001,  // Very relaxed
+        timestampThreshold: 30        // Very relaxed
       };
     default:
       return getDetectionThresholds('medium');
@@ -211,11 +211,28 @@ export function getCurrentLocation(): Promise<LocationData> {
   });
 }
 
-// Detect fake GPS indicators with configurable sensitivity
-export async function detectFakeGPS(level: FakeDetectionLevel = 'medium'): Promise<{ isFake: boolean; reasons: string[] }> {
+// Detect fake GPS indicators with configurable sensitivity and teacher settings
+export async function detectFakeGPS(
+  level: FakeDetectionLevel = 'medium',
+  teacherRadius?: number,
+  pinValiditySeconds?: number
+): Promise<{ isFake: boolean; reasons: string[] }> {
   const reasons: string[] = [];
   let isFake = false;
   const thresholds = getDetectionThresholds(level);
+  
+  // Adjust thresholds based on teacher settings
+  const adjustedThresholds = {
+    ...thresholds,
+    // If teacher set large radius, be more lenient with GPS
+    varianceThreshold: teacherRadius && teacherRadius > 200 
+      ? thresholds.varianceThreshold * 10 
+      : thresholds.varianceThreshold,
+    // If PIN validity is short, be more lenient with timing
+    timestampThreshold: pinValiditySeconds && pinValiditySeconds < 60
+      ? thresholds.timestampThreshold / 2
+      : thresholds.timestampThreshold
+  };
 
   try {
     // Check if running in emulator (basic check)
@@ -250,14 +267,14 @@ export async function detectFakeGPS(level: FakeDetectionLevel = 'medium'): Promi
 
     // Check for suspicious accuracy (too perfect = likely fake)
     const avgAccuracy = readings.reduce((sum, r) => sum + r.accuracy, 0) / readings.length;
-    if (avgAccuracy < thresholds.accuracyThreshold) {
+    if (avgAccuracy < adjustedThresholds.accuracyThreshold) {
       isFake = true;
       reasons.push("GPS aniqlik darajasi shubhali (juda aniq)");
     }
 
     // Check for location spoofing apps behavior
     // Mock locations often have exactly 0 accuracy or very high accuracy
-    if (avgAccuracy === 0 || avgAccuracy > thresholds.maxAccuracy) {
+    if (avgAccuracy === 0 || avgAccuracy > adjustedThresholds.maxAccuracy) {
       isFake = true;
       reasons.push("GPS aniqlik darajasi noto'g'ri");
     }
@@ -273,7 +290,7 @@ export async function detectFakeGPS(level: FakeDetectionLevel = 'medium'): Promi
       return sum + Math.pow(r.longitude - mean, 2);
     }, 0) / readings.length;
 
-    if (latVariance < thresholds.varianceThreshold && lonVariance < thresholds.varianceThreshold) {
+    if (latVariance < adjustedThresholds.varianceThreshold && lonVariance < adjustedThresholds.varianceThreshold) {
       isFake = true;
       reasons.push("GPS ko'rsatkichlari sun'iy ravishda barqaror");
     }
@@ -285,7 +302,7 @@ export async function detectFakeGPS(level: FakeDetectionLevel = 'medium'): Promi
     );
     const avgGap = timestampGaps.reduce((sum, gap) => sum + gap, 0) / timestampGaps.length;
     
-    if (avgGap < thresholds.timestampThreshold) {
+    if (avgGap < adjustedThresholds.timestampThreshold) {
       isFake = true;
       reasons.push("GPS o'lchovlari notekis (juda tez)");
     }

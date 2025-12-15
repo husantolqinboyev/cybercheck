@@ -43,7 +43,7 @@ const StudentCheckin = () => {
     }
   };
 
-  const handleCheckin = async (pinCode: string) => {
+  const handleCheckin = async (pinCode: string, skipGPS: boolean = false) => {
     if (!user || pinCode.length !== 6) return;
 
     setIsChecking(true);
@@ -78,52 +78,76 @@ const StudentCheckin = () => {
       // Get radius from lesson (teacher-configured)
       const radiusMeters = lesson.radius_meters || 120;
 
-      // Check for fake GPS with lesson's detection level
-      const fakeCheck = await detectFakeGPS(lesson.fake_detection_level as FakeDetectionLevel || 'medium');
+      // Skip GPS detection if requested
+      let location, fakeCheck;
+      if (skipGPS) {
+        // Use default location or skip GPS entirely
+        location = {
+          latitude: 0,
+          longitude: 0,
+          accuracy: 9999,
+          timestamp: Date.now()
+        };
+        fakeCheck = { isFake: false, reasons: ["GPS tekshiruvi o'tkazib yuborildi"] };
+      } else {
+        // Check for fake GPS with lesson's detection level and teacher settings
+        fakeCheck = await detectFakeGPS(
+          lesson.fake_detection_level as FakeDetectionLevel || 'medium',
+          lesson.radius_meters,
+          lesson.pin_validity_seconds
+        );
 
-      // Get current location with better error handling
-      let location;
-      try {
-        location = await getCurrentLocation();
-      } catch (error) {
-        let errorMessage = "GPS xatosi";
-        if (error instanceof Error) {
-          errorMessage = error.message;
-          // Provide specific guidance for common errors
-          if (error.message.includes("ruxsat")) {
-            errorMessage += "\n\nChrome/Safari sozlamalarida: \n1. Uch burchak menyuga bosing\n2. 'Joylashuv' ruxsatini 'Ruxsat berilgan' qiling\n3. Sahifani qayta yuklang";
-          } else if (error.message.includes("Internet")) {
-            errorMessage += "\n\nIltimos, Wi-Fi yoki mobil internet aloqasini tekshiring";
+        // Get current location with better error handling
+        try {
+          location = await getCurrentLocation();
+        } catch (error) {
+          let errorMessage = "GPS xatosi";
+          if (error instanceof Error) {
+            errorMessage = error.message;
+            // Provide specific guidance for common errors
+            if (error.message.includes("ruxsat")) {
+              errorMessage += "\n\nChrome/Safari sozlamalarida: \n1. Uch burchak menyuga bosing\n2. 'Joylashuv' ruxsatini 'Ruxsat berilgan' qiling\n3. Sahifani qayta yuklang";
+            } else if (error.message.includes("Internet")) {
+              errorMessage += "\n\nIltimos, Wi-Fi yoki mobil internet aloqasini tekshiring";
+            }
           }
+          setCheckResult({
+            success: false,
+            message: errorMessage,
+          });
+          return;
         }
-        setCheckResult({
-          success: false,
-          message: errorMessage,
-        });
-        return;
       }
 
-      // Calculate distance
-      const distance = calculateDistance(
-        location.latitude,
-        location.longitude,
-        lesson.latitude,
-        lesson.longitude
-      );
+      // Calculate distance (only if GPS was used)
+      let distance = 0;
+      let isWithinRadius = true;
+      
+      if (!skipGPS && location) {
+        distance = calculateDistance(
+          location.latitude,
+          location.longitude,
+          lesson.latitude,
+          lesson.longitude
+        );
+        isWithinRadius = distance <= radiusMeters;
+      }
 
-      const isWithinRadius = distance <= radiusMeters;
       const fingerprint = await getFingerprint();
 
       // Determine status
       let status: "present" | "suspicious" = "present";
       let suspiciousReason: string | null = null;
 
-      if (fakeCheck.isFake) {
+      if (!skipGPS && fakeCheck.isFake) {
         status = "suspicious";
         suspiciousReason = fakeCheck.reasons.join(", ");
-      } else if (!isWithinRadius) {
+      } else if (!skipGPS && !isWithinRadius) {
         status = "suspicious";
         suspiciousReason = `Darsdan ${Math.round(distance)}m uzoqda (ruxsat: ${radiusMeters}m)`;
+      } else if (skipGPS) {
+        status = "present";
+        suspiciousReason = "GPS tekshiruvi o'tkazib yuborildi";
       }
 
       // Update or create attendance record
@@ -275,6 +299,22 @@ const StudentCheckin = () => {
                 disabled={isChecking}
                 autoFocus
               />
+            </div>
+
+            {/* Skip GPS Option */}
+            <div className="mb-4">
+              <Button
+                variant="outline"
+                className="w-full"
+                onClick={() => handleCheckin(pin, true)}
+                disabled={pin.length !== 6 || isChecking}
+              >
+                <AlertTriangle className="w-4 h-4 mr-2" />
+                GPS'siz tekshirish (Bosh)
+              </Button>
+              <p className="text-xs text-muted-foreground mt-2">
+                GPS tekshiruvisiz davomat qilish (faqat ruxsat berilgan holatda)
+              </p>
             </div>
 
             {isChecking && (
