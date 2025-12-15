@@ -62,7 +62,7 @@ const Index = () => {
 
       {/* Footer */}
       <footer className="py-4 text-center text-sm text-muted-foreground">
-        <p>© 2024 CyberCheck. Barcha huquqlar himoyalangan.</p>
+        <p>© 2026 CyberCheck. Barcha huquqlar himoyalangan.</p>
       </footer>
     </div>
   );
