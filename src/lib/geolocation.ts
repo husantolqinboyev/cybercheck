@@ -23,29 +23,29 @@ export interface DetectionThresholds {
   timestampThreshold: number;
 }
 
-// Get detection thresholds based on level
+// Get detection thresholds based on level - realistic browser GPS values
 export function getDetectionThresholds(level: FakeDetectionLevel): DetectionThresholds {
   switch (level) {
     case 'minimal':
       return {
-        accuracyThreshold: 0.01,     // Very precise detection
-        maxAccuracy: 15000,          // Allow much higher accuracy
-        varianceThreshold: 0.0000000001, // Extremely stable detection
-        timestampThreshold: 5        // Very fast detection
+        accuracyThreshold: 1.0,      // Realistic minimum for browser GPS
+        maxAccuracy: 20000,          // Allow very high accuracy
+        varianceThreshold: 0.000001, // Realistic variance
+        timestampThreshold: 100      // Realistic timing
       };
     case 'medium':
       return {
-        accuracyThreshold: 0.05,      // Much more relaxed
-        maxAccuracy: 10000,           // Allow much higher accuracy
-        varianceThreshold: 0.000000001, // Much more relaxed
-        timestampThreshold: 15       // Much more relaxed
+        accuracyThreshold: 3.0,      // Typical browser GPS accuracy
+        maxAccuracy: 15000,           // Allow high accuracy
+        varianceThreshold: 0.00001,   // Normal variance
+        timestampThreshold: 200      // Normal timing
       };
     case 'maximal':
       return {
-        accuracyThreshold: 0.5,      // Very relaxed
-        maxAccuracy: 5000,            // High max accuracy
-        varianceThreshold: 0.0000001,  // Very relaxed
-        timestampThreshold: 30        // Very relaxed
+        accuracyThreshold: 5.0,      // Very relaxed
+        maxAccuracy: 10000,          // Moderate max accuracy
+        varianceThreshold: 0.0001,   // Very relaxed variance
+        timestampThreshold: 500      // Very relaxed timing
       };
     default:
       return getDetectionThresholds('medium');
@@ -211,14 +211,22 @@ export function getCurrentLocation(): Promise<LocationData> {
   });
 }
 
-// Detect fake GPS indicators with configurable sensitivity and teacher settings
-export async function detectFakeGPS(
+// Detect suspicious GPS indicators - only for students, teachers are exempt
+export async function detectSuspiciousGPS(
   level: FakeDetectionLevel = 'medium',
   teacherRadius?: number,
-  pinValiditySeconds?: number
-): Promise<{ isFake: boolean; reasons: string[] }> {
+  pinValiditySeconds?: number,
+  userRole?: 'student' | 'teacher' | 'admin'
+): Promise<{ isSuspicious: boolean; reasons: string[] }> {
   const reasons: string[] = [];
-  let isFake = false;
+  let isSuspicious = false;
+  
+  // Teachers and admins are exempt from GPS checks
+  if (userRole === 'teacher' || userRole === 'admin') {
+    return { isSuspicious: false, reasons: [] };
+  }
+  
+  // Only apply detection to students
   const thresholds = getDetectionThresholds(level);
   
   // Adjust thresholds based on teacher settings
@@ -242,76 +250,58 @@ export async function detectFakeGPS(
       userAgent.includes("emulator") ||
       userAgent.includes("simulator")
     ) {
-      isFake = true;
-      reasons.push("Emulyator aniqlandi");
+      isSuspicious = true;
+      reasons.push("Emulator/Simulator aniqlandi");
     }
 
-    // Check for mock location apps (Android)
-    if ("permissions" in navigator) {
-      try {
-        const result = await navigator.permissions.query({ name: "geolocation" as PermissionName });
-        if (result.state === "denied") {
-          reasons.push("GPS ruxsati yo'q");
-        }
-      } catch {
-        // Permission API not fully supported
-      }
+    // Get location reading for each lesson check-in
+    const location = await getCurrentLocation();
+    
+    // Only check for OBVIOUS fake indicators, not browser quirks
+    
+    // Check for impossible GPS values (not browser quirks)
+    if (location.accuracy === 0) {
+      // Perfect 0 accuracy is impossible in real GPS
+      isSuspicious = true;
+      reasons.push("Mumkin bo'lmagan GPS aniqligi (0 metr)");
     }
-
-    // Get multiple location readings for accuracy validation
+    
+    // Check for extremely high accuracy that suggests mock location
+    if (location.accuracy < 0.1) {
+      // Less than 10cm accuracy is impossible for browser GPS
+      isSuspicious = true;
+      reasons.push("Mumkin bo'lmagan yuqori aniqlik");
+    }
+    
+    // Check for location spoofing apps behavior
+    // Mock locations often have exactly the same coordinates
     const readings = await Promise.all([
-      getCurrentLocation(),
       getCurrentLocation(),
       getCurrentLocation()
     ]);
-
-    // Check for suspicious accuracy (too perfect = likely fake)
-    const avgAccuracy = readings.reduce((sum, r) => sum + r.accuracy, 0) / readings.length;
-    if (avgAccuracy < adjustedThresholds.accuracyThreshold) {
-      isFake = true;
-      reasons.push("GPS aniqlik darajasi shubhali (juda aniq)");
-    }
-
-    // Check for location spoofing apps behavior
-    // Mock locations often have exactly 0 accuracy or very high accuracy
-    if (avgAccuracy === 0 || avgAccuracy > adjustedThresholds.maxAccuracy) {
-      isFake = true;
-      reasons.push("GPS aniqlik darajasi noto'g'ri");
-    }
-
-    // Check for location consistency
-    const latVariance = readings.reduce((sum, r) => {
-      const mean = readings.reduce((s, reading) => s + reading.latitude, 0) / readings.length;
-      return sum + Math.pow(r.latitude - mean, 2);
-    }, 0) / readings.length;
     
-    const lonVariance = readings.reduce((sum, r) => {
-      const mean = readings.reduce((s, reading) => s + reading.longitude, 0) / readings.length;
-      return sum + Math.pow(r.longitude - mean, 2);
-    }, 0) / readings.length;
-
-    if (latVariance < adjustedThresholds.varianceThreshold && lonVariance < adjustedThresholds.varianceThreshold) {
-      isFake = true;
-      reasons.push("GPS ko'rsatkichlari sun'iy ravishda barqaror");
-    }
-
-    // Check timestamp consistency - use configurable threshold
-    // Real GPS readings can be very fast on modern devices, especially with cached locations
-    const timestampGaps = readings.slice(1).map((reading, i) => 
-      reading.timestamp - readings[i].timestamp
-    );
-    const avgGap = timestampGaps.reduce((sum, gap) => sum + gap, 0) / timestampGaps.length;
+    // If coordinates are EXACTLY the same to many decimal places, it's likely fake
+    const latDiff = Math.abs(readings[0].latitude - readings[1].latitude);
+    const lonDiff = Math.abs(readings[0].longitude - readings[1].longitude);
     
-    if (avgGap < adjustedThresholds.timestampThreshold) {
-      isFake = true;
-      reasons.push("GPS o'lchovlari notekis (juda tez)");
+    if (latDiff < 0.0000001 && lonDiff < 0.0000001) {
+      // Real GPS has some variation, exact same coordinates suggest mock location
+      isSuspicious = true;
+      reasons.push("GPS ko'rsatkichlari sun'iy ravishda bir xil");
+    }
+    
+    // Require MULTIPLE indicators before marking as suspicious
+    if (reasons.length < 2) {
+      // Single indicator is not enough for suspicious flag
+      isSuspicious = false;
+      reasons = [];
     }
 
   } catch (error) {
     reasons.push("GPS tekshiruvida xatolik");
   }
 
-  return { isFake, reasons };
+  return { isSuspicious, reasons };
 }
 
 // Check if location is within radius with configurable fake detection
@@ -327,8 +317,8 @@ export async function checkLocationWithinRadius(
     // Get current location
     const location = await getCurrentLocation();
     
-    // Check for fake GPS with specified level
-    const fakeCheck = await detectFakeGPS(detectionLevel);
+    // Check for suspicious GPS with specified level
+    const suspiciousCheck = await detectSuspiciousGPS(detectionLevel);
     
     // Calculate distance
     const distance = calculateDistance(
@@ -347,8 +337,8 @@ export async function checkLocationWithinRadius(
     return {
       isWithinRadius,
       distance,
-      isFakeGPS: fakeCheck.isFake,
-      suspiciousReasons: [...suspiciousReasons, ...fakeCheck.reasons],
+      isFakeGPS: suspiciousCheck.isSuspicious,
+      suspiciousReasons: [...suspiciousReasons, ...suspiciousCheck.reasons],
     };
   } catch (error) {
     return {

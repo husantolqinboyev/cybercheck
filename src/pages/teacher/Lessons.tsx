@@ -73,6 +73,7 @@ const TeacherLessons = () => {
   const [radiusMeters, setRadiusMeters] = useState(120);
   const [pinValiditySeconds, setPinValiditySeconds] = useState(60);
   const [fakeDetectionLevel, setFakeDetectionLevel] = useState<FakeDetectionLevel>('medium');
+  const [allowSkipGPS, setAllowSkipGPS] = useState(false);
   const [activeLesson, setActiveLesson] = useState<ActiveLesson | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isStarting, setIsStarting] = useState(false);
@@ -248,6 +249,7 @@ const TeacherLessons = () => {
           longitude: location.longitude,
           radius_meters: radiusMeters,
           fake_detection_level: fakeDetectionLevel,
+          allow_skip_gps: allowSkipGPS,
           is_active: true,
         })
         .select()
@@ -695,6 +697,21 @@ const TeacherLessons = () => {
                   • Varians chegarasi: {getDetectionThresholds(fakeDetectionLevel).varianceThreshold}
                 </p>
               </div>
+            </div>
+            
+            <div className="space-y-3">
+              <div className="flex items-center justify-between">
+                <Label>Talabalarga GPS'siz kirishga ruxsat berish</Label>
+                <input
+                  type="checkbox"
+                  checked={allowSkipGPS}
+                  onChange={(e) => setAllowSkipGPS(e.target.checked)}
+                  className="w-4 h-4"
+                />
+              </div>
+              <p className="text-xs text-muted-foreground">
+                Agar yoqilsa, talabalar GPS tekshiruvisiz davomat qila olmaydi
+              </p>
             </div>
             
             <Button

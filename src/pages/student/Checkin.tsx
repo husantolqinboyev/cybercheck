@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useToast } from "@/hooks/use-toast";
 import { StudentLayout } from "@/components/layouts/StudentLayout";
-import { getCurrentLocation, calculateDistance, detectFakeGPS, FakeDetectionLevel } from "@/lib/geolocation";
+import { getCurrentLocation, calculateDistance, detectSuspiciousGPS, FakeDetectionLevel } from "@/lib/geolocation";
 import { getFingerprint, isMobileDevice, isAllowedBrowser } from "@/lib/auth";
 import {
   Loader2,
@@ -61,7 +61,7 @@ const StudentCheckin = () => {
       // Find active lesson with this PIN
       const { data: lesson, error: lessonError } = await supabase
         .from("lessons")
-        .select("id, latitude, longitude, radius_meters, pin_expires_at, fake_detection_level")
+        .select("id, latitude, longitude, radius_meters, pin_expires_at, fake_detection_level, allow_skip_gps, pin_validity_seconds")
         .eq("pin_code", pinCode)
         .eq("is_active", true)
         .gte("pin_expires_at", new Date().toISOString())
@@ -79,7 +79,7 @@ const StudentCheckin = () => {
       const radiusMeters = lesson.radius_meters || 120;
 
       // Skip GPS detection if requested
-      let location, fakeCheck;
+      let location, suspiciousCheck;
       if (skipGPS) {
         // Use default location or skip GPS entirely
         location = {
@@ -88,13 +88,14 @@ const StudentCheckin = () => {
           accuracy: 9999,
           timestamp: Date.now()
         };
-        fakeCheck = { isFake: false, reasons: ["GPS tekshiruvi o'tkazib yuborildi"] };
+        suspiciousCheck = { isSuspicious: false, reasons: ["GPS tekshiruvi o'tkazib yuborildi"] };
       } else {
-        // Check for fake GPS with lesson's detection level and teacher settings
-        fakeCheck = await detectFakeGPS(
+        // Check for suspicious GPS with lesson's detection level and teacher settings
+        suspiciousCheck = await detectSuspiciousGPS(
           lesson.fake_detection_level as FakeDetectionLevel || 'medium',
           lesson.radius_meters,
-          lesson.pin_validity_seconds
+          lesson.pin_validity_seconds,
+          user?.role
         );
 
         // Get current location with better error handling
@@ -139,9 +140,9 @@ const StudentCheckin = () => {
       let status: "present" | "suspicious" = "present";
       let suspiciousReason: string | null = null;
 
-      if (!skipGPS && fakeCheck.isFake) {
+      if (!skipGPS && suspiciousCheck.isSuspicious) {
         status = "suspicious";
-        suspiciousReason = fakeCheck.reasons.join(", ");
+        suspiciousReason = suspiciousCheck.reasons.join(", ");
       } else if (!skipGPS && !isWithinRadius) {
         status = "suspicious";
         suspiciousReason = `Darsdan ${Math.round(distance)}m uzoqda (ruxsat: ${radiusMeters}m)`;
@@ -167,7 +168,7 @@ const StudentCheckin = () => {
             latitude: location.latitude,
             longitude: location.longitude,
             distance_meters: distance,
-            is_fake_gps: fakeCheck.isFake,
+            is_fake_gps: suspiciousCheck.isSuspicious,
             suspicious_reason: suspiciousReason,
             fingerprint,
             user_agent: navigator.userAgent,
@@ -182,7 +183,7 @@ const StudentCheckin = () => {
           latitude: location.latitude,
           longitude: location.longitude,
           distance_meters: distance,
-          is_fake_gps: fakeCheck.isFake,
+          is_fake_gps: suspiciousCheck.isSuspicious,
           suspicious_reason: suspiciousReason,
           fingerprint,
           user_agent: navigator.userAgent,
@@ -198,7 +199,7 @@ const StudentCheckin = () => {
           distance,
           status,
           radius: radiusMeters,
-          is_fake_gps: fakeCheck.isFake,
+          is_fake_gps: suspiciousCheck.isSuspicious,
         },
         user_agent: navigator.userAgent,
       });
@@ -301,21 +302,23 @@ const StudentCheckin = () => {
               />
             </div>
 
-            {/* Skip GPS Option */}
-            <div className="mb-4">
-              <Button
-                variant="outline"
-                className="w-full"
-                onClick={() => handleCheckin(pin, true)}
-                disabled={pin.length !== 6 || isChecking}
-              >
-                <AlertTriangle className="w-4 h-4 mr-2" />
-                GPS'siz tekshirish (Bosh)
-              </Button>
-              <p className="text-xs text-muted-foreground mt-2">
-                GPS tekshiruvisiz davomat qilish (faqat ruxsat berilgan holatda)
-              </p>
-            </div>
+            {/* Skip GPS Option - only show if teacher allows */}
+            {checkResult?.lesson?.allow_skip_gps && (
+              <div className="mb-4">
+                <Button
+                  variant="outline"
+                  className="w-full"
+                  onClick={() => handleCheckin(pin, true)}
+                  disabled={pin.length !== 6 || isChecking}
+                >
+                  <AlertTriangle className="w-4 h-4 mr-2" />
+                  GPS'siz tekshirish (Bosh)
+                </Button>
+                <p className="text-xs text-muted-foreground mt-2">
+                  GPS tekshiruvisiz davomat qilish (o'qituvchi ruxsat bergan)
+                </p>
+              </div>
+            )}
 
             {isChecking && (
               <div className="flex items-center justify-center gap-2 text-muted-foreground">
