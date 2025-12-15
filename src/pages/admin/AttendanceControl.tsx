@@ -15,6 +15,7 @@ import {
 import {
   Switch
 } from "@/components/ui/switch";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useToast } from "@/hooks/use-toast";
 import {
   Power,
@@ -25,7 +26,10 @@ import {
   Loader2,
   CheckCircle,
   XCircle,
+  History,
+  Clock,
 } from "lucide-react";
+import { format, subDays, startOfDay, endOfDay } from "date-fns";
 
 interface Lesson {
   id: string;
@@ -39,18 +43,21 @@ interface Lesson {
 }
 
 const AdminAttendanceControl = () => {
-  const [lessons, setLessons] = useState<Lesson[]>([]);
+  const [activeLessons, setActiveLessons] = useState<Lesson[]>([]);
+  const [historicalLessons, setHistoricalLessons] = useState<Lesson[]>([]);
   const [loading, setLoading] = useState(true);
   const [toggling, setToggling] = useState<string | null>(null);
+  const [dateFilter, setDateFilter] = useState('7'); // days to look back
   const { toast } = useToast();
 
   useEffect(() => {
     fetchLessons();
-  }, []);
+  }, [dateFilter]);
 
   const fetchLessons = async () => {
     try {
-      const { data, error } = await supabase
+      // Fetch active lessons
+      const { data: activeData, error: activeError } = await supabase
         .from("lessons")
         .select(`
           id,
@@ -62,10 +69,37 @@ const AdminAttendanceControl = () => {
           subject:subjects(name),
           group:groups(name)
         `)
+        .eq("is_active", true)
         .order("created_at", { ascending: false });
 
-      if (error) throw error;
-      setLessons(data || []);
+      if (activeError) throw activeError;
+      setActiveLessons(activeData || []);
+
+      // Fetch historical lessons
+      const daysBack = parseInt(dateFilter);
+      const startDate = startOfDay(subDays(new Date(), daysBack));
+      const endDate = endOfDay(new Date());
+
+      const { data: historicalData, error: historicalError } = await supabase
+        .from("lessons")
+        .select(`
+          id,
+          pin_code,
+          is_active,
+          pin_expires_at,
+          created_at,
+          teacher:users(full_name),
+          subject:subjects(name),
+          group:groups(name)
+        `)
+        .or(`is_active.eq.false,pin_expires_at.lt.${new Date().toISOString()}`)
+        .gte("created_at", startDate.toISOString())
+        .lte("created_at", endDate.toISOString())
+        .order("created_at", { ascending: false });
+
+      if (historicalError) throw historicalError;
+      setHistoricalLessons(historicalData || []);
+
     } catch (error) {
       console.error("Darslarni olishda xato:", error);
       toast({
@@ -78,7 +112,7 @@ const AdminAttendanceControl = () => {
     }
   };
 
-  const toggleLessonStatus = async (lessonId: string, currentStatus: boolean) => {
+  const toggleLessonStatus = async (lessonId: string, currentStatus: boolean, isHistorical: boolean = false) => {
     setToggling(lessonId);
     
     try {
@@ -95,18 +129,32 @@ const AdminAttendanceControl = () => {
 
       if (error) throw error;
 
-      // Update local state
-      setLessons(prev => prev.map(lesson => 
-        lesson.id === lessonId 
-          ? { 
-              ...lesson, 
-              is_active: !currentStatus,
-              ...(currentStatus ? {} : {
-                pin_expires_at: new Date(Date.now() + 60 * 60 * 1000).toISOString()
-              })
-            }
-          : lesson
-      ));
+      // Update appropriate state
+      if (isHistorical) {
+        setHistoricalLessons(prev => prev.map(lesson => 
+          lesson.id === lessonId 
+            ? { 
+                ...lesson, 
+                is_active: !currentStatus,
+                ...(currentStatus ? {} : {
+                  pin_expires_at: new Date(Date.now() + 60 * 60 * 1000).toISOString()
+                })
+              }
+            : lesson
+        ));
+      } else {
+        setActiveLessons(prev => prev.map(lesson => 
+          lesson.id === lessonId 
+            ? { 
+                ...lesson, 
+                is_active: !currentStatus,
+                ...(currentStatus ? {} : {
+                  pin_expires_at: new Date(Date.now() + 60 * 60 * 1000).toISOString()
+                })
+              }
+            : lesson
+        ));
+      }
 
       toast({
         title: currentStatus ? "Davomat to'xtatildi" : "Davomat yoqildi",
@@ -114,6 +162,9 @@ const AdminAttendanceControl = () => {
           ? "Dars uchun davomat yopildi" 
           : "Dars uchun davomat yoqildi",
       });
+
+      // Refresh data to move between active/historical if needed
+      fetchLessons();
     } catch (error) {
       console.error("Status o'zgartirishda xato:", error);
       toast({
