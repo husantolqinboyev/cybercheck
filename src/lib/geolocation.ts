@@ -328,10 +328,30 @@ export async function checkLocationWithinRadius(
       targetLon
     );
 
-    const isWithinRadius = distance <= radiusMeters;
+    // Adjust radius based on GPS accuracy for different phone capabilities
+    let adjustedRadius = radiusMeters;
+    
+    // If GPS accuracy is poor, give more tolerance
+    if (location.accuracy > 50) {
+      // Very poor GPS signal (indoor, old phone) - add 50% tolerance
+      adjustedRadius = radiusMeters * 1.5;
+    } else if (location.accuracy > 20) {
+      // Poor GPS signal - add 25% tolerance  
+      adjustedRadius = radiusMeters * 1.25;
+    } else if (location.accuracy > 10) {
+      // Moderate GPS signal - add 15% tolerance
+      adjustedRadius = radiusMeters * 1.15;
+    }
+    // Good GPS signal (under 10m) - use original radius
+
+    const isWithinRadius = distance <= adjustedRadius;
 
     if (!isWithinRadius) {
-      suspiciousReasons.push(`Darsdan ${Math.round(distance)}m uzoqda`);
+      const extraInfo = adjustedRadius > radiusMeters 
+        ? ` (GPS aniqligi: ${Math.round(location.accuracy)}m, ruxsat: ${Math.round(adjustedRadius)}m)`
+        : ` (ruxsat: ${Math.round(radiusMeters)}m)`;
+      
+      suspiciousReasons.push(`Darsdan ${Math.round(distance)}m uzoqda${extraInfo}`);
     }
 
     return {

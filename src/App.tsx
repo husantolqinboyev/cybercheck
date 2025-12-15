@@ -13,6 +13,7 @@ import AdminGroups from "./pages/admin/Groups";
 import AdminSubjects from "./pages/admin/Subjects";
 import AdminStudentGroups from "./pages/admin/StudentGroups";
 import AdminReports from "./pages/admin/Reports";
+import AdminAttendanceControl from "./pages/admin/AttendanceControl";
 import TeacherLessons from "./pages/teacher/Lessons";
 import TeacherAttendance from "./pages/teacher/Attendance";
 import TeacherLessonHistory from "./pages/teacher/LessonHistory";
@@ -78,6 +79,14 @@ const App = () => (
               element={
                 <ProtectedRoute allowedRoles={["admin"]}>
                   <AdminReports />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/admin/attendance-control"
+              element={
+                <ProtectedRoute allowedRoles={["admin"]}>
+                  <AdminAttendanceControl />
                 </ProtectedRoute>
               }
             />

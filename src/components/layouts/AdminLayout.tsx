@@ -12,6 +12,7 @@ import {
   Menu,
   X,
   BarChart3,
+  Power,
 } from "lucide-react";
 import { useState } from "react";
 import { cn } from "@/lib/utils";
@@ -25,6 +26,7 @@ const menuItems = [
   { icon: BookOpen, label: "Guruhlar", href: "/admin/groups" },
   { icon: Users, label: "Guruh talabalari", href: "/admin/student-groups" },
   { icon: ClipboardCheck, label: "Fanlar", href: "/admin/subjects" },
+  { icon: Power, label: "Davomat boshqaruvi", href: "/admin/attendance-control" },
   { icon: BarChart3, label: "Hisobotlar", href: "/admin/reports" },
   { icon: Settings, label: "Sozlamalar", href: "/admin/settings" },
 ];
