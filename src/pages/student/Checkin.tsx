@@ -59,15 +59,49 @@ const StudentCheckin = () => {
       }
 
       // Find active lesson with this PIN
+      console.log("PIN qidirilmoqda:", pinCode);
+      console.log("Joriy vaqt:", new Date().toISOString());
+      
       const { data: lesson, error: lessonError } = await supabase
         .from("lessons")
-        .select("id, latitude, longitude, radius_meters, pin_expires_at, fake_detection_level, allow_skip_gps, pin_validity_seconds")
+        .select("id, latitude, longitude, radius_meters, pin_expires_at, fake_detection_level, allow_skip_gps, pin_validity_seconds, pin_code, is_active")
         .eq("pin_code", pinCode)
         .eq("is_active", true)
         .gte("pin_expires_at", new Date().toISOString())
         .maybeSingle();
 
+      console.log("Dars ma'lumotlari:", lesson);
+      console.log("Xato:", lessonError);
+
       if (lessonError || !lesson) {
+        console.log("PIN topilmadi. Sabablari:");
+        console.log("- lessonError:", lessonError);
+        console.log("- lesson mavjudmi:", !!lesson);
+        
+        // Qo'shimcha tekshiruv - barcha active darslarni ko'rsatish
+        const { data: allLessons } = await supabase
+          .from("lessons")
+          .select("pin_code, pin_expires_at, is_active")
+          .eq("is_active", true);
+        
+        console.log("Barcha active darslar:", allLessons);
+        
+        // Mobil qurilma uchun debug ma'lumotlari
+        let debugInfo = `PIN: ${pinCode}\nVaqt: ${new Date().toISOString()}\nXato: ${lessonError?.message || 'Dars topilmadi'}\n\nActive darslar:\n`;
+        
+        if (allLessons && allLessons.length > 0) {
+          allLessons.forEach((l, index) => {
+            debugInfo += `${index + 1}. PIN: ${l.pin_code}, Muddati: ${l.pin_expires_at}, Active: ${l.is_active}\n`;
+          });
+        } else {
+          debugInfo += "Active darslar yo'q";
+        }
+        
+        // Alert orqali ko'rsatish (mobil uchun)
+        if (window.confirm(`Debug ma'lumotlari:\n\n${debugInfo}\n\nKonsolga ham yozildi. OK deb bosing.`)) {
+          // User clicked OK
+        }
+        
         setCheckResult({
           success: false,
           message: "PIN kod noto'g'ri yoki muddati o'tgan",
