@@ -23,32 +23,32 @@ export interface DetectionThresholds {
   timestampThreshold: number;
 }
 
-// Get detection thresholds based on level - realistic browser GPS values
+// Get detection thresholds based on level - very relaxed for realistic browser GPS
 export function getDetectionThresholds(level: FakeDetectionLevel): DetectionThresholds {
   switch (level) {
     case 'minimal':
       return {
-        accuracyThreshold: 1.0,      // Realistic minimum for browser GPS
-        maxAccuracy: 20000,          // Allow very high accuracy
-        varianceThreshold: 0.000001, // Realistic variance
-        timestampThreshold: 100      // Realistic timing
+        accuracyThreshold: 0.1,      // Almost no accuracy restriction
+        maxAccuracy: 50000,          // Allow very high accuracy (poor signal)
+        varianceThreshold: 0.0000001, // Very relaxed variance
+        timestampThreshold: 50        // Very relaxed timing
       };
     case 'medium':
       return {
-        accuracyThreshold: 3.0,      // Typical browser GPS accuracy
-        maxAccuracy: 15000,           // Allow high accuracy
-        varianceThreshold: 0.00001,   // Normal variance
-        timestampThreshold: 200      // Normal timing
+        accuracyThreshold: 0.5,      // Very relaxed accuracy
+        maxAccuracy: 30000,           // Allow high accuracy (poor signal areas)
+        varianceThreshold: 0.000001,  // Very relaxed variance
+        timestampThreshold: 100       // Very relaxed timing
       };
     case 'maximal':
       return {
-        accuracyThreshold: 5.0,      // Very relaxed
-        maxAccuracy: 10000,          // Moderate max accuracy
-        varianceThreshold: 0.0001,   // Very relaxed variance
-        timestampThreshold: 500      // Very relaxed timing
+        accuracyThreshold: 1.0,      // Almost no restriction
+        maxAccuracy: 100000,         // Allow very high accuracy (indoor/bad signal)
+        varianceThreshold: 0.00001,  // Extremely relaxed variance
+        timestampThreshold: 200      // Extremely relaxed timing
       };
     default:
-      return getDetectionThresholds('medium');
+      return getDetectionThresholds('maximal'); // Default to most relaxed
   }
 }
 
@@ -267,8 +267,8 @@ export async function detectSuspiciousGPS(
     }
     
     // Check for extremely high accuracy that suggests mock location
-    if (location.accuracy < 0.1) {
-      // Less than 10cm accuracy is impossible for browser GPS
+    if (location.accuracy < 0.01) {
+      // Less than 1cm accuracy is impossible for browser GPS (was 0.1)
       isSuspicious = true;
       reasons.push("Mumkin bo'lmagan yuqori aniqlik");
     }
@@ -284,8 +284,8 @@ export async function detectSuspiciousGPS(
     const latDiff = Math.abs(readings[0].latitude - readings[1].latitude);
     const lonDiff = Math.abs(readings[0].longitude - readings[1].longitude);
     
-    if (latDiff < 0.0000001 && lonDiff < 0.0000001) {
-      // Real GPS has some variation, exact same coordinates suggest mock location
+    if (latDiff < 0.00000001 && lonDiff < 0.00000001) {
+      // Real GPS has some variation, exact same coordinates suggest mock location (was 0.0000001)
       isSuspicious = true;
       reasons.push("GPS ko'rsatkichlari sun'iy ravishda bir xil");
     }
