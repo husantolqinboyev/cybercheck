@@ -14,6 +14,44 @@ export interface LocationCheckResult {
   suspiciousReasons: string[];
 }
 
+export type FakeDetectionLevel = 'minimal' | 'medium' | 'maximal';
+
+export interface DetectionThresholds {
+  accuracyThreshold: number;
+  maxAccuracy: number;
+  varianceThreshold: number;
+  timestampThreshold: number;
+}
+
+// Get detection thresholds based on level
+export function getDetectionThresholds(level: FakeDetectionLevel): DetectionThresholds {
+  switch (level) {
+    case 'minimal':
+      return {
+        accuracyThreshold: 0.1,      // Very precise detection
+        maxAccuracy: 5000,           // Allow higher accuracy
+        varianceThreshold: 0.00000001, // Very stable detection
+        timestampThreshold: 25       // Very fast detection
+      };
+    case 'medium':
+      return {
+        accuracyThreshold: 0.5,      // Current default
+        maxAccuracy: 2000,           // Current default
+        varianceThreshold: 0.0000001, // Current default
+        timestampThreshold: 50       // Current default
+      };
+    case 'maximal':
+      return {
+        accuracyThreshold: 2.0,      // Less strict accuracy
+        maxAccuracy: 1000,           // Stricter max accuracy
+        varianceThreshold: 0.000001,  // Less strict variance
+        timestampThreshold: 100       // Slower detection
+      };
+    default:
+      return getDetectionThresholds('medium');
+  }
+}
+
 // Calculate distance between two points using Haversine formula
 export function calculateDistance(
   lat1: number,
@@ -173,10 +211,11 @@ export function getCurrentLocation(): Promise<LocationData> {
   });
 }
 
-// Detect fake GPS indicators
-export async function detectFakeGPS(): Promise<{ isFake: boolean; reasons: string[] }> {
+// Detect fake GPS indicators with configurable sensitivity
+export async function detectFakeGPS(level: FakeDetectionLevel = 'medium'): Promise<{ isFake: boolean; reasons: string[] }> {
   const reasons: string[] = [];
   let isFake = false;
+  const thresholds = getDetectionThresholds(level);
 
   try {
     // Check if running in emulator (basic check)
@@ -211,14 +250,14 @@ export async function detectFakeGPS(): Promise<{ isFake: boolean; reasons: strin
 
     // Check for suspicious accuracy (too perfect = likely fake)
     const avgAccuracy = readings.reduce((sum, r) => sum + r.accuracy, 0) / readings.length;
-    if (avgAccuracy < 1) {
+    if (avgAccuracy < thresholds.accuracyThreshold) {
       isFake = true;
       reasons.push("GPS aniqlik darajasi shubhali (juda aniq)");
     }
 
     // Check for location spoofing apps behavior
     // Mock locations often have exactly 0 accuracy or very high accuracy
-    if (avgAccuracy === 0 || avgAccuracy > 1000) {
+    if (avgAccuracy === 0 || avgAccuracy > thresholds.maxAccuracy) {
       isFake = true;
       reasons.push("GPS aniqlik darajasi noto'g'ri");
     }
@@ -234,20 +273,21 @@ export async function detectFakeGPS(): Promise<{ isFake: boolean; reasons: strin
       return sum + Math.pow(r.longitude - mean, 2);
     }, 0) / readings.length;
 
-    if (latVariance < 0.000001 && lonVariance < 0.000001) {
+    if (latVariance < thresholds.varianceThreshold && lonVariance < thresholds.varianceThreshold) {
       isFake = true;
       reasons.push("GPS ko'rsatkichlari sun'iy ravishda barqaror");
     }
 
-    // Check timestamp consistency
+    // Check timestamp consistency - use configurable threshold
+    // Real GPS readings can be very fast on modern devices, especially with cached locations
     const timestampGaps = readings.slice(1).map((reading, i) => 
       reading.timestamp - readings[i].timestamp
     );
     const avgGap = timestampGaps.reduce((sum, gap) => sum + gap, 0) / timestampGaps.length;
     
-    if (avgGap < 100) {
+    if (avgGap < thresholds.timestampThreshold) {
       isFake = true;
-      reasons.push("GPS o'lchovlari juda tez (mumkin emas)");
+      reasons.push("GPS o'lchovlari notekis (juda tez)");
     }
 
   } catch (error) {
@@ -257,11 +297,12 @@ export async function detectFakeGPS(): Promise<{ isFake: boolean; reasons: strin
   return { isFake, reasons };
 }
 
-// Check if location is within radius
+// Check if location is within radius with configurable fake detection
 export async function checkLocationWithinRadius(
   targetLat: number,
   targetLon: number,
-  radiusMeters: number
+  radiusMeters: number,
+  detectionLevel: FakeDetectionLevel = 'medium'
 ): Promise<LocationCheckResult> {
   const suspiciousReasons: string[] = [];
   
@@ -269,8 +310,8 @@ export async function checkLocationWithinRadius(
     // Get current location
     const location = await getCurrentLocation();
     
-    // Check for fake GPS
-    const fakeCheck = await detectFakeGPS();
+    // Check for fake GPS with specified level
+    const fakeCheck = await detectFakeGPS(detectionLevel);
     
     // Calculate distance
     const distance = calculateDistance(

@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useToast } from "@/hooks/use-toast";
 import { StudentLayout } from "@/components/layouts/StudentLayout";
-import { getCurrentLocation, calculateDistance, detectFakeGPS } from "@/lib/geolocation";
+import { getCurrentLocation, calculateDistance, detectFakeGPS, FakeDetectionLevel } from "@/lib/geolocation";
 import { getFingerprint, isMobileDevice, isAllowedBrowser } from "@/lib/auth";
 import {
   Loader2,
@@ -61,7 +61,7 @@ const StudentCheckin = () => {
       // Find active lesson with this PIN
       const { data: lesson, error: lessonError } = await supabase
         .from("lessons")
-        .select("id, latitude, longitude, radius_meters, pin_expires_at")
+        .select("id, latitude, longitude, radius_meters, pin_expires_at, fake_detection_level")
         .eq("pin_code", pinCode)
         .eq("is_active", true)
         .gte("pin_expires_at", new Date().toISOString())
@@ -78,8 +78,8 @@ const StudentCheckin = () => {
       // Get radius from lesson (teacher-configured)
       const radiusMeters = lesson.radius_meters || 120;
 
-      // Check for fake GPS
-      const fakeCheck = await detectFakeGPS();
+      // Check for fake GPS with lesson's detection level
+      const fakeCheck = await detectFakeGPS(lesson.fake_detection_level as FakeDetectionLevel || 'medium');
 
       // Get current location with better error handling
       let location;

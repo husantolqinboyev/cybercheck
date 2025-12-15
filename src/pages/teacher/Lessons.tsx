@@ -21,7 +21,7 @@ import { Slider } from "@/components/ui/slider";
 import { useToast } from "@/hooks/use-toast";
 import { TeacherLayout } from "@/components/layouts/TeacherLayout";
 import { generatePIN } from "@/lib/auth";
-import { getCurrentLocation, diagnoseGPSSystem } from "@/lib/geolocation";
+import { getCurrentLocation, diagnoseGPSSystem, FakeDetectionLevel, getDetectionThresholds } from "@/lib/geolocation";
 import {
   Play,
   Square,
@@ -72,6 +72,7 @@ const TeacherLessons = () => {
   const [selectedSubject, setSelectedSubject] = useState("");
   const [radiusMeters, setRadiusMeters] = useState(120);
   const [pinValiditySeconds, setPinValiditySeconds] = useState(60);
+  const [fakeDetectionLevel, setFakeDetectionLevel] = useState<FakeDetectionLevel>('medium');
   const [activeLesson, setActiveLesson] = useState<ActiveLesson | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isStarting, setIsStarting] = useState(false);
@@ -246,6 +247,7 @@ const TeacherLessons = () => {
           latitude: location.latitude,
           longitude: location.longitude,
           radius_meters: radiusMeters,
+          fake_detection_level: fakeDetectionLevel,
           is_active: true,
         })
         .select()
@@ -574,6 +576,42 @@ const TeacherLessons = () => {
                   PIN kod amal qilish muddati (30s - 210s)
                 </p>
               </div>
+
+              {/* Fake GPS Detection Level Setting */}
+              <div className="space-y-3">
+                <Label>Soxta GPS aniqlash darajasi</Label>
+                <Select value={fakeDetectionLevel} onValueChange={(v: FakeDetectionLevel) => setFakeDetectionLevel(v)}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Darajani tanlang" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="minimal">
+                      <div className="flex flex-col">
+                        <span className="font-medium">Minimal (juda sekin)</span>
+                        <span className="text-xs text-muted-foreground">Eng kam tekshiruv, tez tekshirish</span>
+                      </div>
+                    </SelectItem>
+                    <SelectItem value="medium">
+                      <div className="flex flex-col">
+                        <span className="font-medium">Ortacha (optimal)</span>
+                        <span className="text-xs text-muted-foreground">Balanslangan tekshiruv</span>
+                      </div>
+                    </SelectItem>
+                    <SelectItem value="maximal">
+                      <div className="flex flex-col">
+                        <span className="font-medium">Maksimal (juda qattiq)</span>
+                        <span className="text-xs text-muted-foreground">Eng qattiq tekshiruv, sekin tekshirish</span>
+                      </div>
+                    </SelectItem>
+                  </SelectContent>
+                </Select>
+                <div className="bg-muted rounded-lg p-3">
+                  <p className="text-xs text-muted-foreground">
+                    <strong>Sozlamalar:</strong> Aniqlik: {getDetectionThresholds(fakeDetectionLevel).accuracyThreshold}m, 
+                    Vaqt: {getDetectionThresholds(fakeDetectionLevel).timestampThreshold}ms
+                  </p>
+                </div>
+              </div>
             </div>
 
             <div className="pt-4">
@@ -621,6 +659,44 @@ const TeacherLessons = () => {
                 Talabalar darsdan bu masofada bo'lishi kerak
               </p>
             </div>
+            
+            <div className="space-y-3">
+              <Label>Soxta GPS aniqlash darajasi</Label>
+              <Select value={fakeDetectionLevel} onValueChange={(v: FakeDetectionLevel) => setFakeDetectionLevel(v)}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Darajani tanlang" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="minimal">
+                    <div className="flex flex-col">
+                      <span className="font-medium">Minimal (juda sekin)</span>
+                      <span className="text-xs text-muted-foreground">Eng kam tekshiruv, tez tekshirish</span>
+                    </div>
+                  </SelectItem>
+                  <SelectItem value="medium">
+                    <div className="flex flex-col">
+                      <span className="font-medium">Ortacha (optimal)</span>
+                      <span className="text-xs text-muted-foreground">Balanslangan tekshiruv</span>
+                    </div>
+                  </SelectItem>
+                  <SelectItem value="maximal">
+                    <div className="flex flex-col">
+                      <span className="font-medium">Maksimal (juda qattiq)</span>
+                      <span className="text-xs text-muted-foreground">Eng qattiq tekshiruv, sekin tekshirish</span>
+                    </div>
+                  </SelectItem>
+                </SelectContent>
+              </Select>
+              <div className="bg-muted rounded-lg p-3">
+                <p className="text-xs text-muted-foreground">
+                  <strong>Joriy sozlamalar:</strong><br/>
+                  • Aniqlik chegarasi: {getDetectionThresholds(fakeDetectionLevel).accuracyThreshold}m<br/>
+                  • Vaqt oraligi: {getDetectionThresholds(fakeDetectionLevel).timestampThreshold}ms<br/>
+                  • Varians chegarasi: {getDetectionThresholds(fakeDetectionLevel).varianceThreshold}
+                </p>
+              </div>
+            </div>
+            
             <Button
               className="w-full"
               onClick={() => {
