@@ -28,24 +28,24 @@ export function getDetectionThresholds(level: FakeDetectionLevel): DetectionThre
   switch (level) {
     case 'minimal':
       return {
-        accuracyThreshold: 0.1,      // Very precise detection
-        maxAccuracy: 5000,           // Allow higher accuracy
-        varianceThreshold: 0.00000001, // Very stable detection
-        timestampThreshold: 25       // Very fast detection
+        accuracyThreshold: 0.05,     // Very precise detection
+        maxAccuracy: 10000,          // Allow higher accuracy
+        varianceThreshold: 0.000000001, // Very stable detection
+        timestampThreshold: 10       // Very fast detection
       };
     case 'medium':
       return {
-        accuracyThreshold: 0.5,      // Current default
-        maxAccuracy: 2000,           // Current default
-        varianceThreshold: 0.0000001, // Current default
-        timestampThreshold: 50       // Current default
+        accuracyThreshold: 0.1,      // More relaxed
+        maxAccuracy: 5000,           // Allow higher accuracy
+        varianceThreshold: 0.00000001, // More relaxed
+        timestampThreshold: 25       // More relaxed
       };
     case 'maximal':
       return {
-        accuracyThreshold: 2.0,      // Less strict accuracy
-        maxAccuracy: 1000,           // Stricter max accuracy
-        varianceThreshold: 0.000001,  // Less strict variance
-        timestampThreshold: 100       // Slower detection
+        accuracyThreshold: 1.0,      // Much less strict
+        maxAccuracy: 3000,           // Moderate max accuracy
+        varianceThreshold: 0.000001,  // Much less strict
+        timestampThreshold: 50       // Much more relaxed
       };
     default:
       return getDetectionThresholds('medium');
