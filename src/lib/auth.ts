@@ -259,6 +259,8 @@ async function makeRequestWithFallback(path: string, options: RequestInit): Prom
         },
       };
       
+      console.log('Request options:', JSON.stringify(requestOptions, null, 2));
+      
       return await makeRequest(url, requestOptions);
     } catch (error) {
       console.warn(`Failed to connect to ${baseUrl}:`, error instanceof Error ? error.message : error);

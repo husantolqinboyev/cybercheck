@@ -24,7 +24,8 @@ function corsHeaders(origin: string | null = null) {
     "http://localhost:8080",
     "https://localhost:8080",
     "http://localhost:5173",
-    "https://localhost:5173"
+    "https://localhost:5173",
+    "null"
   ];
   
   // Dynamic CORS - ruxsat berilgan originlardan birini tanlash
