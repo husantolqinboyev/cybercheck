@@ -296,6 +296,7 @@ export async function makeAdminRequest(action: string, data: any): Promise<{ suc
     console.error("Admin request error:", error);
     return { success: false, error: "Network error" };
   }
+}
 
 // Validate current session via token
 export async function validateSession(): Promise<{ valid: boolean; user?: User; expires_at?: string }> {
