@@ -108,7 +108,7 @@ Deno.serve(async (req) => {
 
     // Password check - bcrypt hash bilan solishtirish
     // Demo uchun oddiy solishtirish, aslida bcrypt kerak
-    if (user.password_hash !== password && user.password_hash !== '$2b$12$LQv3c1yqBWVHxkd0LHAkCOYz6TtxMQJqhN8/LewdBPj6ukx.LrUpm' && password !== 'Husan0716') {
+    if (user.password_hash !== password) {
       return json({ error: "Login yoki parol noto'g'ri" }, 401, {}, origin);
     }
 

@@ -9,6 +9,7 @@ import {
   getFingerprint,
   saveSession,
   clearSession,
+  isSessionExpired,
 } from "@/lib/auth";
 
 interface AuthContextType {

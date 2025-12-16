@@ -85,8 +85,17 @@ export function isAllowedBrowser(role: "admin" | "teacher" | "student"): boolean
 // Memory-only session storage (refresh qilinsa o'chadi)
 let currentSession: Session | null = null;
 
-// Get current session from memory
+// Check if session is expired
+export function isSessionExpired(session: Session): boolean {
+  return new Date(session.expires_at) < new Date();
+}
+
+// Get current session from memory with expiration check
 export function getCurrentSession(): Session | null {
+  if (currentSession && isSessionExpired(currentSession)) {
+    clearSession();
+    return null;
+  }
   return currentSession;
 }
 
@@ -285,11 +294,8 @@ export async function validateSession(): Promise<{ valid: boolean; user?: User; 
     return { valid: true, user: result.user, expires_at: result.expires_at };
   } catch (error) {
     console.error("Session validation error:", error);
-    // Fall back to memory if server is unreachable
-    if (localSession) {
-      console.log("Using cached session due to network issues");
-      return { valid: true, user: localSession.user, expires_at: localSession.expires_at };
-    }
+    // Don't fall back to memory session - require server validation
+    clearSession();
     return { valid: false };
   }
 }
