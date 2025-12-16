@@ -249,7 +249,17 @@ async function makeRequestWithFallback(path: string, options: RequestInit): Prom
     try {
       const url = `${baseUrl}${path}`;
       console.log(`Trying URL: ${baseUrl}`);
-      return await makeRequest(url, options);
+      
+      // Add Origin header for CORS
+      const requestOptions = {
+        ...options,
+        headers: {
+          ...options.headers,
+          'Origin': window.location.origin,
+        },
+      };
+      
+      return await makeRequest(url, requestOptions);
     } catch (error) {
       console.warn(`Failed to connect to ${baseUrl}:`, error instanceof Error ? error.message : error);
       // Continue to next URL

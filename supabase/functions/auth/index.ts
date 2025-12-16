@@ -22,7 +22,9 @@ function corsHeaders(origin: string | null = null) {
   const allowedOrigins = [
     "https://cybercheck-uni.vercel.app",
     "http://localhost:8080",
-    "http://localhost:5173"
+    "https://localhost:8080",
+    "http://localhost:5173",
+    "https://localhost:5173"
   ];
   
   // Dynamic CORS - ruxsat berilgan originlardan birini tanlash
