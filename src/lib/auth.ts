@@ -259,6 +259,32 @@ async function makeRequestWithFallback(path: string, options: RequestInit): Prom
   throw new Error('All connection attempts failed. Please check your internet connection.');
 }
 
+// Admin API request with proper headers
+export async function makeAdminRequest(action: string, data: any): Promise<{ success: boolean; data?: any; error?: string }> {
+  const session = getCurrentSession();
+  
+  if (!session || session.user.role !== "admin") {
+    return { success: false, error: "Admin access required" };
+  }
+  
+  try {
+    const response = await makeRequestWithFallback('/functions/v1/admin/' + action, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "x-admin-token": session.token,
+        "x-csrf-token": session.token, // Simple CSRF using session token
+      },
+      body: JSON.stringify(data),
+    });
+    
+    const result = await response.json();
+    return result;
+  } catch (error) {
+    console.error("Admin request error:", error);
+    return { success: false, error: "Network error" };
+  }
+
 // Validate current session via token
 export async function validateSession(): Promise<{ valid: boolean; user?: User; expires_at?: string }> {
   // First check memory for quick UI state
