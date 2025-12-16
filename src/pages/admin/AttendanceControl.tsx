@@ -221,7 +221,7 @@ const AdminAttendanceControl = () => {
             </CardTitle>
           </CardHeader>
           <CardContent>
-            {lessons.length === 0 ? (
+            {activeLessons.length === 0 ? (
               <div className="text-center py-8 text-muted-foreground">
                 <Calendar className="w-12 h-12 mx-auto mb-4 opacity-50" />
                 <p>Hozircha faol darslar yo'q</p>
@@ -241,7 +241,7 @@ const AdminAttendanceControl = () => {
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {lessons.map((lesson) => (
+                  {activeLessons.map((lesson) => (
                     <TableRow key={lesson.id}>
                       <TableCell className="font-medium">
                         {lesson.teacher?.full_name || "Noma'lum"}
