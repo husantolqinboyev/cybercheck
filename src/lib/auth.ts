@@ -248,6 +248,7 @@ async function makeRequestWithFallback(path: string, options: RequestInit): Prom
   for (const baseUrl of FALLBACK_URLS) {
     try {
       const url = `${baseUrl}${path}`;
+      console.log(`Trying URL: ${baseUrl}`);
       
       // Add Origin header for CORS
       const requestOptions = {
@@ -257,6 +258,8 @@ async function makeRequestWithFallback(path: string, options: RequestInit): Prom
           'Origin': window.location.origin,
         },
       };
+      
+      console.log('Request options:', JSON.stringify(requestOptions, null, 2));
       
       return await makeRequest(url, requestOptions);
     } catch (error) {
